@@ -2260,7 +2260,7 @@ type offsetAcc =
     }
 
 (* Hack to prevent infinite recursion in alignments *)
-let ignoreAlignmentAttrs = ref false
+let ignoreAlignmentAttrs = Domain.DLS.new_key (fun () -> false)
 
 (* Get the minimum alignment in bytes for a given type *)
 let rec alignOf_int t =
@@ -2312,7 +2312,7 @@ let rec alignOf_int t =
     [] ->
       (* no __aligned__ attribute, so get the default alignment *)
       alignOfType ()
-  | _ when !ignoreAlignmentAttrs ->
+  | _ when Domain.DLS.get ignoreAlignmentAttrs ->
       ignore (warn "ignoring recursive align attributes on %a"
                 (!pd_type) t);
       alignOfType ()
@@ -2365,14 +2365,14 @@ and intOfAttrparam (a:attrparam) : int option =
              struct s {...} __attribute__((aligned(sizeof(struct s))))
      This is too conservative, but it's often enough.
   *)
-  assert (not !ignoreAlignmentAttrs);
-  ignoreAlignmentAttrs := true;
+  assert (not (Domain.DLS.get ignoreAlignmentAttrs));
+  Domain.DLS.set ignoreAlignmentAttrs true;
   try
     let n = doit a in
-    ignoreAlignmentAttrs := false;
+    Domain.DLS.set ignoreAlignmentAttrs false;
     Some n
   with SizeOfError _ -> (* Can't compile *)
-    ignoreAlignmentAttrs := false;
+    Domain.DLS.set ignoreAlignmentAttrs false;
     None
 
 
